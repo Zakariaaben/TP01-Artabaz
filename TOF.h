@@ -2,7 +2,7 @@
 #define TOF_H
 
 #include <stdio.h>
-
+#include <stdbool.h>
 typedef unsigned int uint;
 
 #define MAX_NAME_LENGTH  25
@@ -18,7 +18,7 @@ typedef struct student_record {
     uint ID;
     char name[MAX_NAME_LENGTH];
     char family_name[MAX_FAMILY_NAME_LENGTH];
-    char date_of_birth[10];
+    char date_of_birth[12];
     char city_of_birth[MAX_CITY_NAME_LENGTH];
 } student_record;
 
@@ -52,7 +52,10 @@ int getHeader(const TOF_file file,const  int property);
 
 TOF_block read_TOF_block(const TOF_file file,uint block_number);
 
+bool write_TOF_block(TOF_file *file, const TOF_block block, const uint block_number);
 
+void print_TOF_block(const TOF_block block);
 
+bool search_TOF_record(const TOF_file file,const uint ID,  int * block_pos, int * record_pos);
 
 #endif //TOF_H
