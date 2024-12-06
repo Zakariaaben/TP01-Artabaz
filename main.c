@@ -1,43 +1,29 @@
 #include <stdio.h>
 #include <string.h>
-
+#include <errno.h>
 #include "TOF.h"
 
+
 int main(void) {
-    if (!create_TOF_file("test12.txt")) {
-        printf("Error creating TOF file\n");
-    }
+    student_record record;
+    FILE * file = fopen("files/students_data_1a.csv","r");
 
-    TOF_file file = open_TOF_file("test12.txt");
-
-    if (!file.file) {
-        printf("Error opening TOF file\n");
+    if (file == NULL) {
+        printf("Error while opening file %s\n", strerror(errno));
         return 1;
     }
 
-    const student_record record={123,"jhon","mohamed","15/11/2021","Century"};
-    const student_record record2={124,"jhon","mohamed","15/11/2021","Century"};
-    const student_record record3={125,"jhon","mohamed","15/11/2021","Century"};
-    TOF_block block;
-    block.records[0] = record;
-    block.records[1] = record2;
-    block.records[2] = record3;
-    block.nb_records = 3;
+    create_TOF_file("./students_data_1.tof");
 
-    if(!write_TOF_block(&file, block, 1)) {
-        return 1;
-    }
+    TOF_file tof_file = open_TOF_file("./students_data_1.tof");
 
-    int i,j;
+    const int  *res = load_TOF_file_csv("files/students_data_1a.csv", &tof_file);
 
-    search_TOF_record(file, 128, &i, &j);
+    printf("%d %d\n",res[0],res[1]);
 
-    printf("%d %d\n", i, j);
+    print_TOF_header(tof_file);
 
-
-
-
-
+    close_tof_file(&tof_file);
 
     return 0;
 }
