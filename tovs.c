@@ -117,37 +117,42 @@ TOVS_block read_TOVS_block(const TOVS_file file,const  int block_number)
     return block;
 }
 
-// Write a block to the file
-int writeBloc(TOVC_File *tovcFile, int blockNum, Tbloc *block)
+// Read a block from the file
+// Read a block from the file
+TOVS_block read_TOVS_block(const TOVS_file file,const  int block_number)
 {
-    // Validate block number
+    // Retrieve the last block number from the header
     int lastBlockNum = getHeaderField(tovcFile->header, 1);
-    if (blockNum <= 0)
+    if (blockNum > 0 && blockNum <= lastBlockNum)
+    { // Ensure blockNum is within range
+        // Seek to the block's position
+        fseek(tovcFile->filePtr, sizeof(Entete) + (blockNum - 1) * sizeof(Tbloc), SEEK_SET);
+        // Read the block from the file
+        if (fread(block, sizeof(Tbloc), 1, tovcFile->filePtr) == 1)
+        {
+            return 0; // Success
+        }
+        else
+        {
+            return -2; // Read error
+        }
+    }
+    return -1; // Invalid block number
+}
+
+// Write a block to the file
+bool write_TOVS_block(TOVS_file *file,const int block_number, TOVS_block * block)
+//int writeBloc(TOVC_File *tovcFile, int blockNum, Tbloc *block)
+{
+
+    // Validate block number
+    int lastBlockNum = getHeader_TOVS(file, 1);
+    if (block_number <= 0 || block_number>lastBlockNum+1)
     {
-        return -1; // Invalid block number
+        return false; // Invalid block number
     }
 
-    // Seek to the block's position
-    if (fseek(tovcFile->filePtr, sizeof(Entete) + (blockNum - 1) * sizeof(Tbloc), SEEK_SET) != 0)
-    {
-        perror("Seek error");
-        return -2; // Seek error
-    }
-
-    // Write the block
-    if (fwrite(block, sizeof(Tbloc), 1, tovcFile->filePtr) != 1)
-    {
-        perror("Write error");
-        return -3; // Write error
-    }
-
-    // Update the header if writing a new block
-    if (blockNum > lastBlockNum)
-    {
-        setHeaderField(&(tovcFile->header), 1, blockNum); // Update lastBlockNum
-    }
-
-    return 0; // Success
+    return true; // Success
 }
 /*
 void convertTOFToTOVS(const char *tofFile, const char *tovsFile)
