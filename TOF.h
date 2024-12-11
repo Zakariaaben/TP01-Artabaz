@@ -3,32 +3,14 @@
 
 #include <stdio.h>
 #include <stdbool.h>
-typedef unsigned int uint;
+#include "constants.h"
 
-#define MAX_NAME_LENGTH  25
-#define MAX_FAMILY_NAME_LENGTH 25
-#define MAX_CITY_NAME_LENGTH 25
-#define MAX_ACQUIRED_SKILLS_LENGTH 255
+
+
 #define TOF_LOADING_FACTOR  0.7 // Number between 0 and 1
 #define TOF_RECORDS_NUMBER  100
 
-#define VERBOSE true
 
-
-
-typedef struct student_record {
-    uint ID;
-    char name[MAX_NAME_LENGTH];
-    char family_name[MAX_FAMILY_NAME_LENGTH];
-    char date_of_birth[20];
-    char city_of_birth[MAX_CITY_NAME_LENGTH];
-    bool is_deleted;
-} student_record;
-
-typedef struct student_additional_info {
-    uint ID, year_of_study;
-    char acquired_skills[MAX_ACQUIRED_SKILLS_LENGTH];
-} student_additional_info;
 
 typedef struct TOF_header {
     int
@@ -47,10 +29,7 @@ typedef struct TOF_file {
     TOF_header header;
 }TOF_file;
 
-typedef struct cost {
-    int reads;
-    int writes;
-} cost;
+
 
 
 bool create_TOF_file(const char * file_name);
