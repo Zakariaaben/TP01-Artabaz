@@ -102,23 +102,19 @@ void setHeader_TOVS(TOVS_file * file, const int field, int value)
 // Read a block from the file
 TOVS_block read_TOVS_block(const TOVS_file file,const  int block_number)
 {
+    TOVS_block block;
     // Retrieve the last block number from the header
-    int lastBlockNum = getHeaderField(tovcFile->header, 1);
-    if (blockNum > 0 && blockNum <= lastBlockNum)
+    int lastBlockNum = getHeader_TOVS(file,1);
+    if (block_number > 0 && block_number <= lastBlockNum)
     { // Ensure blockNum is within range
         // Seek to the block's position
-        fseek(tovcFile->filePtr, sizeof(Entete) + (blockNum - 1) * sizeof(Tbloc), SEEK_SET);
+        fseek(file.file, sizeof(TOVS_header) + (block_number - 1) * sizeof(TOVS_block), SEEK_SET);
         // Read the block from the file
-        if (fread(block, sizeof(Tbloc), 1, tovcFile->filePtr) == 1)
-        {
-            return 0; // Success
-        }
-        else
-        {
-            return -2; // Read error
-        }
+        fread(&block, sizeof(TOVS_block), 1, file.file) == 1);
+        return block;
     }
-    return -1; // Invalid block number
+    printf("Error while reading TOVS block , Invalid block number");
+    return block;
 }
 
 // Write a block to the file
