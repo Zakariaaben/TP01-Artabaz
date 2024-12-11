@@ -12,6 +12,8 @@ typedef unsigned int uint;
 #define TOF_LOADING_FACTOR  0.7 // Number between 0 and 1
 #define TOF_RECORDS_NUMBER  100
 
+#define VERBOSE true
+
 
 
 typedef struct student_record {
@@ -77,9 +79,13 @@ void print_TOF_file(const TOF_file file);
 
 bool parse_student_record(const char *line, student_record *record);
 
-int * load_TOF_file_csv(const char * csv_filename, TOF_file * tof_file);
+int * load_TOF_file_from_csv(const char * csv_filename, TOF_file * tof_file);
 
 void close_tof_file(const TOF_file *file);
+
+int * delete_TOF_records_from_csv(const char * csv_filename,TOF_file *file);
+
+int TOF_fragmentation(const TOF_file file);
 
 
 #endif //TOF_H

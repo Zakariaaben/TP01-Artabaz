@@ -56,7 +56,7 @@ TOF_file open_TOF_file(const char *file_name) {
  *
  * @param file The TOF file whose header is to be read.
  * @param property The property to retrieve: 1 for number of blocks, 2 for number of records.
- * @return The number of blocks if property is 1, the number of records if property is 2, and -1 otherwise.
+ * @return The number of blocks if property is 1, the number of records if property is 2 and -1 otherwise.
  */
 int getHeader(const TOF_file file, const int property) {
     if (file.file == NULL) {
@@ -68,6 +68,7 @@ int getHeader(const TOF_file file, const int property) {
             return file.header.number_of_blocks;
         case 2:
             return file.header.number_of_records;
+
         default:
             printf("Error getting header, please Enter 1 for NBlk and 2 for NBrec \n");
             return -1;
@@ -87,6 +88,7 @@ void setHeader(TOF_file *file, const int property, const int value) {
         case 2:
             file->header.number_of_records = value;
             break;
+
         default:
             printf("Error setting header, please Enter 1 for NBlk and 2 for NBrec \n");
             break;
@@ -172,66 +174,7 @@ void print_student_record(const student_record record) {
            record.date_of_birth, record.city_of_birth);
 }
 
-// Ancienne version de la recherche
 
-// //Searches for a record with a specific ID in the TOF file, returns true if it finds it and false otherwise
-// bool search_TOF_record(const TOF_file file, const uint ID, int *block_pos, int *record_pos,cost * cost) {
-//     if (file.file == NULL) {
-//         printf("Error while searching for records in the file: FILE is null \n");
-//         return false;
-//     }
-//
-//     //If there is no block then it should be in the first block at the first position
-//     if (file.header.number_of_blocks == 0) {
-//         *block_pos = 1;
-//         *record_pos = 0;
-//         return false;
-//     }
-//
-//     int low = 1, up = getHeader(file, 1);
-//
-//     TOF_block buffer;
-//
-//     bool found=false;
-//
-//
-//     //Searches for block number containing the record
-//     while (low <= up ) {
-//         *block_pos = (low + up) / 2;
-//         buffer = read_TOF_block(file, *block_pos);
-//         if (ID > buffer.records[buffer.nb_records - 1].ID) {
-//             low = *block_pos + 1;
-//         } else if (ID < buffer.records[0].ID) {
-//             up = *block_pos - 1;
-//         } else {
-//             found = true;
-//             break;
-//         }
-//     }
-//     if (!found) {
-//         *block_pos = low;
-//     }
-//
-//     int low2 = 0, up2 = buffer.nb_records - 1;
-//
-//
-//     //searches for record position inside the block
-//     while (low2 <= up2) {
-//         *record_pos = (low2 + up2) / 2;
-//         const student_record current_record = buffer.records[low];
-//         if (current_record.ID == ID) {
-//             return true;
-//         } else if (current_record.ID < ID) {
-//             low2 = *record_pos + 1;
-//         } else {
-//             up2 = *record_pos - 1;
-//         }
-//     }
-//
-//     *record_pos = low;
-//
-//     return true;
-// }
 
 
 // Search (Hidouci Version)
@@ -437,7 +380,7 @@ bool parse_student_record(const char *line, student_record *record) {
 
 
 // Function that parse CSV File 01 and loads the TOF File and returns the number of records inserted and the number of records not inserted
-int *load_TOF_file_csv(const char *csv_filename, TOF_file *tof_file) {
+int *load_TOF_file_from_csv(const char *csv_filename, TOF_file *tof_file) {
     FILE *file = fopen(csv_filename, "r");
 
     static int res[2] = {0, 0};
@@ -458,6 +401,7 @@ int *load_TOF_file_csv(const char *csv_filename, TOF_file *tof_file) {
     int i = 0;
     while (fgets(line, 1024, file)) {
         cost cost = {0, 0};
+        i++;
         student_record record;
         parse_student_record(line, &record);
         record.is_deleted = false;
@@ -465,6 +409,11 @@ int *load_TOF_file_csv(const char *csv_filename, TOF_file *tof_file) {
         if (insert_TOF_record(tof_file, record, &cost)) {
             res[0]++;
             fprintf(tof_insertion_cost_file, "%d,%d,%d\n", record.ID, cost.reads, cost.writes);
+            //print record each 1000 records
+            if (VERBOSE && i%1000==0) {
+                printf("Record with ID %d has been inserted with %d reads and %d writes\n", record.ID, cost.reads,
+                       cost.writes);
+            }
         } else {
             res[1]++;
         }
@@ -486,8 +435,90 @@ void close_tof_file(const TOF_file *file) {
     }
 }
 
+bool delete_TOF_record(TOF_file *file, const uint ID, cost *cost) {
+    cost->reads = 0;
+    cost->writes = 0;
+
+    int block_pos;
+    int record_pos;
+    const bool found = search_TOF_record(*file, ID, &block_pos, &record_pos, cost);
+
+    if (!found) {
+        return false;
+    }
+
+    TOF_block block = read_TOF_block(*file, block_pos);
+    cost->reads++;
+
+    block.records[record_pos].is_deleted = true;
+    write_TOF_block(file, block, block_pos);
+    cost->writes++;
+
+    setHeader(file, 2, getHeader(*file, 2) - 1);
+
+    return true;
+}
 
 
+int * delete_TOF_records_from_csv(const char * csv_filename,TOF_file *file) {
+    FILE *file_csv = fopen(csv_filename, "r");
+    static int res[2] = {0, 0};
+
+    if (file_csv == NULL) {
+        printf("Error while opening csv file %s\n", strerror(errno));
+        return res;
+    }
+
+    const char * source = "./tof_deletion_cost.csv";
+    FILE * tof_deletion_cost_file = fopen(source, "w");
+    fprintf(tof_deletion_cost_file, "ID,Reads,Writes\n");
+
+    char line[1024];
+    //jump the first line
+    fgets(line, 1024, file_csv);
+    int i=0;
+    while (fgets(line, 1024, file_csv)) {
+        cost cost = {0, 0};
+
+        const int ID =atoi(line);
+        if (ID == 0 ) {
+            continue;
+        }
+
+        if (delete_TOF_record(file, ID, &cost)) {
+            if (VERBOSE) {
+                printf("Record with ID %d has been deleted with %d reads and %d writes\n", ID, cost.reads, cost.writes);
+            }
+            res[0]++;
+            fprintf(tof_deletion_cost_file, "%d,%d,%d\n", ID, cost.reads, cost.writes);
+        } else {
+            res[1]++;
+        }
+    }
+
+    fclose(tof_deletion_cost_file);
+    fclose(file_csv);
+    printf("%d",i);
+
+    return  res;
+}
+
+int TOF_fragmentation(const TOF_file file) {
+    const int nb_blocks = getHeader(file, 1);
+    int records_number = 0;
+
+    for (int i=1;i<=nb_blocks;i++){
+        const TOF_block block = read_TOF_block(file,i);
+        for (int j=0;j<block.nb_records;j++){
+            if (!block.records[j].is_deleted){
+                records_number++;
+            }
+        }
+    }
+
+    return  records_number;
+
+}
 
 
 
