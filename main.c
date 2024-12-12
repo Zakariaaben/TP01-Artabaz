@@ -1,39 +1,50 @@
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
+
+#include "tovs.h"
 #include "TOF.h"
 
 
 
 int main(void) {
-    student_record record;
-    FILE * file = fopen("files/students_data_1a.csv","r");
+    char string[5]="few";
+    char rest[5]="\0";
 
-    if (file == NULL) {
-        printf("Error while opening csv file %s\n", strerror(errno));
-        return 1;
-    }
+    strncpy(rest,"12", 2);
+    strcat(string,rest);
+
+    create_TOVS_file("./test_tovs.bin");
+
+    TOVS_file file = open_TOVS_file("./test_tovs.bin");
+
+    TOVS_block block;
+    char line[1000];
+    char line2[1000]="";
+    strcpy(line, "0048,0,12345,Hello,FamilyName,15/11/68,algiers,skills#0048,0,12347,Hello,FamilyName,15/11/68,algiers,skills#0048,0,12349,Hello,FamilyName,15/11/68,algiers,skills#");
 
 
-    create_TOF_file("./students_data_1.tof");
 
-    TOF_file tof_file = open_TOF_file("./students_data_1.tof");
+    strcpy(block.data, line);
+    setHeader_TOVS(&file,2,106);
+    write_TOVS_block(&file, 1, &block);
 
-    const int  *res = load_TOF_file_from_csv("files/students_data_1a.csv", &tof_file);
+    setHeader_TOVS(&file,1,1);
 
-    printf("%d %d\n",res[0],res[1]);
+    printf("Header  : %d blocks and the last pos : %d\n\n",file.header.number_of_blocks,file.header.last_character_position);
 
-    print_TOF_header(tof_file);
+    int x,y;
+    search_TOVS_record(file, 12349, (uint *) &x, (uint * )&y);
 
-    const int  *res2 =delete_TOF_records_from_csv("files/delete_students.csv", &tof_file);
+    printf("%d %d",x,y );
 
-    print_TOF_header(tof_file);
 
-    printf("%d %d\n",res2[0],res2[1]);
 
-    printf("%d",TOF_fragmentation(tof_file));
 
-    close_tof_file(&tof_file);
+
+
+
+
 
     return 0;
 }
