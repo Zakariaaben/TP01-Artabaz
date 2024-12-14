@@ -320,7 +320,6 @@ bool search_TOVS_record(TOVS_file file, const uint ID, uint *block_number, uint 
     // iterate over all the blocks
     while (i <= getHeader_TOVS(file, 1)) {
         j = 0;
-        printf("i :%d\n", i);
 
         const int current_last_index = getHeader_TOVS(file, 1) == i ? getHeader_TOVS(file, 2) : MAX_CHAR_BLOCK_TOVS - 1;
         const TOVS_block block = read_TOVS_block(file, i);
@@ -429,6 +428,22 @@ bool search_TOVS_record(TOVS_file file, const uint ID, uint *block_number, uint 
         }
         i++;
     }
+
+
+    const int nblk = getHeader_TOVS(file, 1);
+    // If the file is not empty, and we are at this point then the record should be inserted at the end
+    if (nblk != 0) {
+        *char_pos = getHeader_TOVS(file, 2);
+        * block_number  = nblk;
+
+        *char_pos +=1 ;
+        if (*char_pos == MAX_CHAR_BLOCK_TOVS) {
+            printf("biggest !! \n");
+            *char_pos = 0;
+            * block_number  = nblk+1;
+        }
+
+    }
     return false;
 }
 
@@ -442,30 +457,84 @@ bool insert_TOVS_record(TOVS_file *file, const complete_student_record record) {
         return false;
     }
 
-    char * string_record = convert_full_record_to_string(record);
-
+    char *string_record = convert_full_record_to_string(record);
     char final_tovs_record[MAX_RECORD_LENGTH];
-
     char size[10];
-    snprintf(size,10,"%.4d,",strlen(string_record));
-    size[strlen(string_record)] = '\0';
 
-    strcpy(final_tovs_record,size );
-    strcat(final_tovs_record,string_record);
+    size_t length = strlen(string_record);
+    snprintf(size, 10, "%.4d,", length);
+    size[length] = '\0';
+
+    // Creating the TOVS record to insert
+    strcpy(final_tovs_record, size);
+    strcat(final_tovs_record, string_record);
+    free(string_record);
     strcat(final_tovs_record,RECORD_SEPARATOR_TOVS);
-    free (string_record);
+    printf("  -  record to insert : %s\n should start at %d %d\n",final_tovs_record,block_pos,char_pos );
+    length = strlen(final_tovs_record);
 
-    bool finished = false;
 
-    while(!finished) {
+    int j = char_pos;
+    size_t count = 0;
 
+    for (int i = block_pos; i <= getHeader_TOVS(*file, 1); i++) {
+        TOVS_block block = read_TOVS_block(*file, i);
+        const int current_last_index = getHeader_TOVS(*file, 1) == i
+                                           ? getHeader_TOVS(*file, 2)
+                                           : MAX_CHAR_BLOCK_TOVS - 1;
+
+        while (j <= current_last_index) {
+            const char temp = block.data[j];
+            block.data[j] = final_tovs_record[count];
+            final_tovs_record[count] = temp;
+            count = (count + 1) % length;
+            j++;
+        }
+        j = 0;
+        write_TOVS_block(file, i, &block);
     }
 
-    printf("%s",final_tovs_record);
+    TOVS_block block;
+
+    int nblk = getHeader_TOVS(*file, 1);
+    //get index of character in the last block
+    j = getHeader_TOVS(*file, 2);
+
+    // If block where to insert already exists and is not full
+    if (nblk != 0 && ((j + 1) != MAX_CHAR_BLOCK_TOVS)) {
+        j++;
+        block = read_TOVS_block(*file, nblk);
+    }else { // jf block is full or it is the first block
+        nblk ++;
+        j = 0;
+    }
+
+    count = 0;
+
+    while (count < length) {
+        block.data[j] = final_tovs_record[count];
+        j++;
+        count++;
+
+        if (j == MAX_CHAR_BLOCK_TOVS) {
+            write_TOVS_block(file, nblk, &block);
+            setHeader_TOVS(file, 1, nblk);
+            nblk++;
+            j = 0;
+        }
+    }
+
+    if (j != 0) {
+        write_TOVS_block(file, nblk, &block);
+        setHeader_TOVS(file, 1, nblk);
+        setHeader_TOVS(file,2,j - 1);
+    }else {
+        setHeader_TOVS(file,2,MAX_CHAR_BLOCK_TOVS - 1);
+    }
+
 
 
     return true;
-
 }
 
 
