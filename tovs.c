@@ -5,7 +5,7 @@
 #include <stdbool.h>
 #include "TOF.h"
 #include "tovs.h"
-
+#include "csv.h"
 // Function to initialize the file's header
 bool create_TOVS_file(const char *filename) {
     FILE *file = fopen(filename, "wb");
@@ -163,136 +163,43 @@ char *convert_full_record_to_string(const complete_student_record record) {
     strcat(string_record, record.year_of_study == -1 ? "" : year_of_study);
 
     strcat(string_record, ",");
+    strcat(string_record, "\"");
     strcat(string_record, record.acquired_skills);
-    // add \0 at the end of the string
-    strcat(string_record, "\0");
+    strcat(string_record, "\"\0");
     return string_record;
 }
 
 
 // Parsing student record in format isDeleted,ID,name,family_name,date,city,year,skills
 bool parse_complete_student_record(const char *line, complete_student_record *record) {
-    const char *start = line;
-    int fieldIndex = 0;
-    while (fieldIndex < 8) {
-        const char *end = strchr(start, ',');
-        if (end == NULL) {
-            end = start + strlen(start);
-        }
+    char **parsed = parse_csv(line);
+    record->is_deleted = atoi(parsed[0]);
+    record->ID = atoi(parsed[1]);
+    strcpy(record->name, parsed[2]);
+    strcpy(record->family_name, parsed[3]);
+    strcpy(record->date_of_birth, parsed[4]);
+    strcpy(record->city_of_birth, parsed[5]);
+    record->year_of_study = atoi(parsed[6]);
+    strcpy(record->acquired_skills, parsed[7]);
 
-        const size_t length = end - start;
-
-        switch (fieldIndex) {
-            case 0:
-                char isDeleted[1];
-                strncpy(isDeleted, start, length);
-                record->is_deleted = atoi(isDeleted);
-                break;
-            case 1:
-                char ID[20];
-                strncpy(ID, start, length);
-                ID[length] = '\0';
-
-                if (atoi(ID) == 0) {
-                    return false;
-                }
-
-
-                record->ID = atoi(ID);
-
-            case 2:
-                strncpy(record->name, start, length);
-                record->name[length] = '\0';
-                break;
-
-            case 3:
-                strncpy(record->family_name, start, length);
-                record->family_name[length] = '\0';
-                break;
-
-            case 4:
-                strncpy(record->date_of_birth, start, length);
-
-                record->date_of_birth[length] = '\0';
-                break;
-            case 5:
-                strncpy(record->city_of_birth, start, length);
-                record->city_of_birth[length] = '\0';
-                break;
-
-            case 6:
-                char year_of_study[5];
-                strncpy(year_of_study, start, length);
-                year_of_study[length] = '\0';
-                record->year_of_study = atoi(year_of_study);
-
-            case 7:
-                strncpy(record->acquired_skills, start, length);
-                record->acquired_skills[length] = '\0';
-                break;
-
-            default:
-                break;
-        }
-
-        // Move to the next field
-        if (*end == ',') {
-            start = end + 1;
-        } else {
-            break; // End of line reached
-        }
-        fieldIndex++;
-    }
-    return true;
+    free(parsed);
+    return  true;
 }
 
-bool parse_additional_info(const char *line, student_additional_info *record) {
-    const char *start = line;
-    int fieldIndex = 0;
-    while (fieldIndex < 3) {
-        const char *end = strchr(start, ',');
-        if (end == NULL) {
-            end = start + strlen(start);
-        }
+bool parse_additional_info(const char *line, student_additional_info *record)  {
+    char ** escapedLine = split_on_unescaped_newlines(line);
+    char ** parsed = parse_csv(escapedLine[0]);
 
-        const size_t length = end - start;
-
-        switch (fieldIndex) {
-            case 0:
-                char ID[20];
-                strncpy(ID, start, length);
-                ID[length] = '\0';
-                if (atoi(ID) == 0) {
-                    return false;
-                }
-
-                record->ID = atoi(ID);
-                break;
-            case 1:
-                char year_of_study[5];
-                strncpy(year_of_study, start, length);
-                year_of_study[length] = '\0';
-                if (atoi(year_of_study) == 0) {
-                    record->year_of_study = -1;
-                    break;
-                }
-                record->year_of_study = atoi(year_of_study);
-            case 2:
-                strncpy(record->acquired_skills, start, length);
-                record->acquired_skills[length] = '\0';
-                break;
-            default:
-                break;
-        }
-
-        // Move to the next field
-        if (*end == ',') {
-            start = end + 1;
-        } else {
-            break; // End of line reached
-        }
-        fieldIndex++;
+    if (parsed == NULL) {
+        return false;
     }
+    record->ID = atoi(parsed[0]);
+    if (record->ID == 0) {
+        return false;
+    }
+    record->year_of_study=atoi( parsed[1]);
+    strcpy(record->acquired_skills, parsed[2]);
+    free(parsed);
     return true;
 }
 
@@ -300,6 +207,7 @@ bool parse_additional_info(const char *line, student_additional_info *record) {
 bool search_TOVS_record(TOVS_file file, const uint ID, uint *block_number, uint *char_pos) {
     bool is_divided = false;
     bool new_record = true;
+    printf("Searching RECORD with ID : %d\n",ID);
 
 
     // Variable to hold the size of the current record
@@ -323,7 +231,6 @@ bool search_TOVS_record(TOVS_file file, const uint ID, uint *block_number, uint 
 
         const int current_last_index = getHeader_TOVS(file, 1) == i ? getHeader_TOVS(file, 2) : MAX_CHAR_BLOCK_TOVS - 1;
         const TOVS_block block = read_TOVS_block(file, i);
-
 
         while (j <= current_last_index) {
             const int space_to_end = MAX_CHAR_BLOCK_TOVS - j;
@@ -438,7 +345,7 @@ bool search_TOVS_record(TOVS_file file, const uint ID, uint *block_number, uint 
 
         *char_pos +=1 ;
         if (*char_pos == MAX_CHAR_BLOCK_TOVS) {
-            printf("biggest !! \n");
+
             *char_pos = 0;
             * block_number  = nblk+1;
         }
@@ -452,10 +359,12 @@ bool insert_TOVS_record(TOVS_file *file, const complete_student_record record) {
     int block_pos, char_pos;
 
     const bool found = search_TOVS_record(*file, record.ID, (uint *) &block_pos, (uint *) &char_pos);
+    printf("record should be inserted in block %d pos %d\n",block_pos,char_pos);
 
     if (found) {
         return false;
     }
+
 
     char *string_record = convert_full_record_to_string(record);
     char final_tovs_record[MAX_RECORD_LENGTH];
@@ -470,8 +379,8 @@ bool insert_TOVS_record(TOVS_file *file, const complete_student_record record) {
     strcat(final_tovs_record, string_record);
     free(string_record);
     strcat(final_tovs_record,RECORD_SEPARATOR_TOVS);
-    printf("  -  record to insert : %s\n should start at %d %d\n",final_tovs_record,block_pos,char_pos );
     length = strlen(final_tovs_record);
+    printf("Final to insert : %s\n ",final_tovs_record);
 
 
     int j = char_pos;
@@ -494,6 +403,7 @@ bool insert_TOVS_record(TOVS_file *file, const complete_student_record record) {
         write_TOVS_block(file, i, &block);
     }
 
+
     TOVS_block block;
 
     int nblk = getHeader_TOVS(*file, 1);
@@ -509,12 +419,12 @@ bool insert_TOVS_record(TOVS_file *file, const complete_student_record record) {
         j = 0;
     }
 
-    count = 0;
-
-    while (count < length) {
+    int cpt = 0;
+    while (cpt < length) {
         block.data[j] = final_tovs_record[count];
         j++;
-        count++;
+        count = (count +1)%length;
+        cpt++;
 
         if (j == MAX_CHAR_BLOCK_TOVS) {
             write_TOVS_block(file, nblk, &block);
@@ -537,5 +447,81 @@ bool insert_TOVS_record(TOVS_file *file, const complete_student_record record) {
     return true;
 }
 
+void expand_TOF_to_TOVS(const char *csv_filename, TOF_file tof_file,TOVS_file *tovs_file) {
+    FILE *file = fopen(csv_filename, "r");
+
+    if (file == NULL) {
+        printf("Error while opening file %s\n", strerror(errno));
+        return ;
+    }
+
+    // Create a file to store the cost of insertion at each iteration
+    // const char * source = "tof_insertion_cost.csv";
+    // FILE *tof_insertion_cost_file = fopen(source, "w");
+    // fprintf(tof_insertion_cost_file, "ID,Reads,Writes\n");
+
+    char line[1024];
+    //jump the first line
+    fgets(line, 1024, file);
+    int i = 0 ;
+
+    while (fgets(line, 1024, file)) {
+        i++;
+
+        printf("line : %s",line);
+        student_additional_info additional_info ;
+        parse_additional_info(line, &additional_info);
+
+
+        cost cost  ;
+        int block_pos, record_pos;
+        int found = search_TOF_record(tof_file, additional_info.ID, &block_pos,&record_pos ,&cost);
+        if (i==9) print_TOVS_file(*tovs_file);
+        if (found) {
+
+            const TOF_block block = read_TOF_block(tof_file, block_pos);
+            const student_record record = block.records[record_pos];
+
+            complete_student_record complete_record = {
+                .ID = record.ID,
+                .is_deleted = record.is_deleted,
+                .name = "",
+                .family_name = "",
+                .date_of_birth = "",
+                .city_of_birth = "",
+                .year_of_study = additional_info.year_of_study,
+                .acquired_skills = ""
+            };
+
+            strcpy(complete_record.name, record.name );
+            strcpy(complete_record.family_name, record.family_name);
+            strcpy(complete_record.date_of_birth, record.date_of_birth);
+            strcpy(complete_record.city_of_birth, record.city_of_birth );
+            strcpy(complete_record.acquired_skills, additional_info.acquired_skills );
+            printf("header before insertion : %d %d\n",getHeader_TOVS(*tovs_file,1),getHeader_TOVS(*tovs_file,2));
+
+            insert_TOVS_record(tovs_file, complete_record);
+
+            printf("header after insertion : %d %d\n\n",getHeader_TOVS(*tovs_file,1),getHeader_TOVS(*tovs_file,2));
+        }
+
+
+
+
+    }
+    // fclose(tof_insertion_cost_file);
+    fclose(file);
+}
+
+
+
+void print_TOVS_file(const TOVS_file tovs_file) {
+    printf("********************* PRINT TOVS FILE *********************\n");
+    for(int i=1 ; i<= getHeader_TOVS(tovs_file,1); i++) {
+        TOVS_block block = read_TOVS_block(tovs_file,i);
+        printf("Block %d : %.*s\n",i, i==getHeader_TOVS(tovs_file,1)? getHeader_TOVS(tovs_file,2)+1:MAX_CHAR_BLOCK_TOVS,block.data);
+    }
+    printf("********************* PRINT TOVS FILE *********************\n");
+}
 
 

@@ -11,10 +11,10 @@
 #include "TOF.h"
 
 
-#define MAX_CHAR_BLOCK_TOVS 60 // Number of characters in a record
+#define MAX_CHAR_BLOCK_TOVS 100 // Number of characters in a record
 #define RECORD_SEPARATOR_TOVS "#" // Special character indicating the end of data
 #define FIELD_SEPARATOR_TOVS ","
-#define MAX_RECORD_LENGTH 120
+#define MAX_RECORD_LENGTH 500
 
 // Structure definitions
 typedef struct TOVS_block
@@ -57,11 +57,11 @@ bool search_TOVS_record(TOVS_file file, const uint ID, uint *  block_number, uin
 
 bool insert_TOVS_record(TOVS_file *file, const complete_student_record record);
 
-void print_TOVS_file(const TOVS_file file);
+void print_TOVS_file(const TOVS_file tovs_file);
 
 bool parse_student_additional_info(const char *line, student_record *record);
 
-int * expand_TOF_to_TOVS(const char * csv_filename, TOF_file  tof_file);
+void expand_TOF_to_TOVS(const char * csv_filename, TOF_file  tof_file, TOVS_file *file);
 
 char *convert_full_record_to_string(const complete_student_record record);
 

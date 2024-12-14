@@ -1,10 +1,11 @@
+
 #include "TOF.h"
 #include <errno.h>
-#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
+#include "csv.h"
 
 /**
  * Creates a TOF file with the specified file name and initializes its header.
@@ -213,6 +214,7 @@ bool search_TOF_record(const TOF_file file, const uint ID, int *block_pos, int *
             while (low2 <= up2 && !Trouv) {
                 *record_pos = (low2 + up2) / 2;
                 if (buffer.records[*record_pos].ID == ID) {
+
                     Trouv = true;
                     is_deleted = buffer.records[*record_pos].is_deleted;
                 } else if (buffer.records[*record_pos].ID < ID) {
@@ -233,6 +235,7 @@ bool search_TOF_record(const TOF_file file, const uint ID, int *block_pos, int *
         *record_pos = 0;
     }
 
+
     if (Trouv && !is_deleted) {
         return true;
     } else {
@@ -248,6 +251,7 @@ bool insert_TOF_record(TOF_file *file, student_record record, cost *cost) {
 
     int block_pos;
     int record_pos;
+
     const bool found = search_TOF_record(*file, record.ID, &block_pos, &record_pos, cost);
 
     if (found) {
@@ -324,58 +328,23 @@ void print_TOF_file(TOF_file file) {
 
 // Parsing student record
 bool parse_student_record(const char *line, student_record *record) {
-    const char *start = line;
-    int fieldIndex = 0;
-    while (fieldIndex < 5) {
-        const char *end = strchr(start, ',');
-        if (end == NULL) {
-            end = start + strlen(start);
-        }
+    char ** escapedLine = split_on_unescaped_newlines(line);
+    char ** parsed = parse_csv(escapedLine[0]);
 
-        const size_t length = end - start;
-
-        switch (fieldIndex) {
-            case 0:
-
-                char ID[5];
-                strncpy(ID, start, length);
-
-                if (atoi(ID) == 0) {
-                    return false;
-                }
-                record->ID = atoi(ID);
-                break;
-            case 1:
-                strncpy(record->name, start, length);
-                record->name[length] = '\0';
-                break;
-            case 2:
-                strncpy(record->family_name, start, length);
-                record->family_name[length] = '\0';
-                break;
-            case 3:
-                strncpy(record->date_of_birth, start, length);
-
-                record->date_of_birth[length] = '\0';
-                break;
-            case 4:
-                strncpy(record->city_of_birth, start, length);
-                record->city_of_birth[length] = '\0';
-                break;
-            default:
-                break;
-        }
-
-        // Move to the next field
-        if (*end == ',') {
-            start = end + 1;
-        } else {
-            break; // End of line reached
-        }
-
-        fieldIndex++;
+    char ID[10];
+    strcpy(ID, parsed[0]);
+    if (atoi(ID) == 0) {
+        return false;
     }
-    return true;
+
+    record->ID = atoi(ID);
+
+    strcpy(record->name, parsed[1]);
+    strcpy(record->family_name, parsed[2]);
+    strcpy(record->date_of_birth, parsed[3]);
+    strcpy(record->city_of_birth, parsed[4]);
+    return  true;
+
 }
 
 

@@ -8,4 +8,7 @@ add_executable(TP_01_Artabaz main.c
         TOF.h
         tovs.c
         tovs.h
-        constants.h)
+        constants.h
+        csv.c
+        csv.h
+        split.c)

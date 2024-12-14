@@ -1,54 +1,47 @@
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
-
+#include <stdlib.h>
 #include "tovs.h"
 #include "TOF.h"
-
-
+#include "csv.h"
+bool parse_additional_info_v2(const char *line, student_additional_info *record);
 
 int main(void) {
-    char string[5]="few";
-    char rest[5]="\0";
 
-    strncpy(rest,"12", 2);
-    strcat(string,rest);
+
+
 
     create_TOVS_file("./test_tovs.bin");
 
-    TOVS_file file = open_TOVS_file("./test_tovs.bin");
+    TOVS_file tovs_file = open_TOVS_file("./test_tovs.bin");
 
-    complete_student_record record = {
-        1234,
-        "John",
-        "Doe",
-        "01/01/2000",
-        "Paris4NWOB",
-        1,
-        "CJavaydiayShG",
+    create_TOF_file("./test_tof.bin");
+    TOF_file tof_file = open_TOF_file("./test_tof.bin");
 
-    };
-    char record_str[MAX_RECORD_LENGTH];
+    load_TOF_file_from_csv("./files/test-file.csv",&tof_file);
 
+    print_TOF_header(tof_file);
 
-
-    int  bias[20] = {2,-6,-12,16,26,-4,6,18,14,-26,105, 12, 14, 16, 18, 20, 22, 24,-150,1};
-    const int orginal = record.ID;
-    for ( int i = 0  ; i<20; i++){
-        record.ID = orginal + bias[i];
-        insert_TOVS_record(&file, record);
-        printf("Header : %d %d\n", getHeader_TOVS(file,1),getHeader_TOVS(file,2));
-
-    }
-
-
-    for (int i =1; i <= getHeader_TOVS(file,1); i++) {
-        TOVS_block block = read_TOVS_block(file, i);
-        printf("block %d : %.*s\n",i,i==getHeader_TOVS(file,1)?getHeader_TOVS(file,2)+1:MAX_CHAR_BLOCK_TOVS,block.data);
-    }
+    // complete_student_record record  = convert_string_to_full_record("0,18766,Amine,Hamdi,22/06/2003,Tizi Ouzou,5,\"Dynamic Structures, C++, Web Development\"")';
+    // insert_TOVS_record(&tovs_file, record);
+    // record
 
 
 
+
+    expand_TOF_to_TOVS("./files/test-file2.csv",tof_file,&tovs_file);
+
+
+
+
+
+
+
+    close_TOVS_file(tovs_file);
+    close_tof_file(&tof_file);
 
     return 0;
 }
+
+
