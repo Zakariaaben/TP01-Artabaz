@@ -19,7 +19,7 @@ int main(void) {
     create_TOF_file("./test_tof.bin");
     TOF_file tof_file = open_TOF_file("./test_tof.bin");
 
-    load_TOF_file_from_csv("./files/test-file.csv",&tof_file);
+    load_TOF_file_from_csv("./files/students_data_1a.csv",&tof_file);
 
     print_TOF_header(tof_file);
 
@@ -28,9 +28,7 @@ int main(void) {
     // record
 
 
-
-
-    expand_TOF_to_TOVS("./files/test-file2.csv",tof_file,&tovs_file);
+    expand_TOF_to_TOVS("./files/students_data_2a.csv",tof_file,&tovs_file);
 
 
 

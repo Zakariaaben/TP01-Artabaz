@@ -11,7 +11,7 @@
 #include "TOF.h"
 
 
-#define MAX_CHAR_BLOCK_TOVS 100 // Number of characters in a record
+#define MAX_CHAR_BLOCK_TOVS 1000 // Number of characters in a record
 #define RECORD_SEPARATOR_TOVS "#" // Special character indicating the end of data
 #define FIELD_SEPARATOR_TOVS ","
 #define MAX_RECORD_LENGTH 500

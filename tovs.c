@@ -204,10 +204,10 @@ bool parse_additional_info(const char *line, student_additional_info *record)  {
 }
 
 
+
 bool search_TOVS_record(TOVS_file file, const uint ID, uint *block_number, uint *char_pos) {
     bool is_divided = false;
     bool new_record = true;
-    printf("Searching RECORD with ID : %d\n",ID);
 
 
     // Variable to hold the size of the current record
@@ -227,7 +227,7 @@ bool search_TOVS_record(TOVS_file file, const uint ID, uint *block_number, uint 
 
     // iterate over all the blocks
     while (i <= getHeader_TOVS(file, 1)) {
-        j = 0;
+        j = j%MAX_CHAR_BLOCK_TOVS;
 
         const int current_last_index = getHeader_TOVS(file, 1) == i ? getHeader_TOVS(file, 2) : MAX_CHAR_BLOCK_TOVS - 1;
         const TOVS_block block = read_TOVS_block(file, i);
@@ -244,6 +244,8 @@ bool search_TOVS_record(TOVS_file file, const uint ID, uint *block_number, uint 
                     size[4] = '\0';
                     j = j + 5;
                     new_record = false;
+
+
                     current_record_size = atoi(size);
                     continue;
                 }
@@ -255,6 +257,7 @@ bool search_TOVS_record(TOVS_file file, const uint ID, uint *block_number, uint 
                     *char_pos = j;
                     // get first part of the size in the record i
                     strncpy(size, block.data + j, space_to_end);
+                    size[space_to_end] = '\0';
                     remaining_chars = 4 - space_to_end;
                     j = j + space_to_end;
                     is_divided = true;
@@ -264,6 +267,7 @@ bool search_TOVS_record(TOVS_file file, const uint ID, uint *block_number, uint 
                 // Get second part of the record and jump over the comma
                 char rest[10] = "\0";
                 strncpy(rest, block.data + j, remaining_chars);
+                rest[remaining_chars] = '\0';
                 strcat(size, rest);
                 size[4] = '\0';
                 j = j + remaining_chars + 1;
@@ -355,11 +359,15 @@ bool search_TOVS_record(TOVS_file file, const uint ID, uint *block_number, uint 
 }
 
 
+
+
+
+
+
 bool insert_TOVS_record(TOVS_file *file, const complete_student_record record) {
     int block_pos, char_pos;
 
     const bool found = search_TOVS_record(*file, record.ID, (uint *) &block_pos, (uint *) &char_pos);
-    printf("record should be inserted in block %d pos %d\n",block_pos,char_pos);
 
     if (found) {
         return false;
@@ -380,7 +388,6 @@ bool insert_TOVS_record(TOVS_file *file, const complete_student_record record) {
     free(string_record);
     strcat(final_tovs_record,RECORD_SEPARATOR_TOVS);
     length = strlen(final_tovs_record);
-    printf("Final to insert : %s\n ",final_tovs_record);
 
 
     int j = char_pos;
@@ -468,7 +475,6 @@ void expand_TOF_to_TOVS(const char *csv_filename, TOF_file tof_file,TOVS_file *t
     while (fgets(line, 1024, file)) {
         i++;
 
-        printf("line : %s",line);
         student_additional_info additional_info ;
         parse_additional_info(line, &additional_info);
 
@@ -476,7 +482,7 @@ void expand_TOF_to_TOVS(const char *csv_filename, TOF_file tof_file,TOVS_file *t
         cost cost  ;
         int block_pos, record_pos;
         int found = search_TOF_record(tof_file, additional_info.ID, &block_pos,&record_pos ,&cost);
-        if (i==9) print_TOVS_file(*tovs_file);
+
         if (found) {
 
             const TOF_block block = read_TOF_block(tof_file, block_pos);
@@ -498,11 +504,14 @@ void expand_TOF_to_TOVS(const char *csv_filename, TOF_file tof_file,TOVS_file *t
             strcpy(complete_record.date_of_birth, record.date_of_birth);
             strcpy(complete_record.city_of_birth, record.city_of_birth );
             strcpy(complete_record.acquired_skills, additional_info.acquired_skills );
-            printf("header before insertion : %d %d\n",getHeader_TOVS(*tovs_file,1),getHeader_TOVS(*tovs_file,2));
+            // printf("header before insertion : %d %d\n",getHeader_TOVS(*tovs_file,1),getHeader_TOVS(*tovs_file,2));
 
             insert_TOVS_record(tovs_file, complete_record);
-
-            printf("header after insertion : %d %d\n\n",getHeader_TOVS(*tovs_file,1),getHeader_TOVS(*tovs_file,2));
+            if(i % 1000 ==0) {
+                printf("Inserted %d records\n",i);
+                printf("header after insertion : %d %d\n\n",getHeader_TOVS(*tovs_file,1),getHeader_TOVS(*tovs_file,2));
+            }
+            // printf("header after insertion : %d %d\n\n",getHeader_TOVS(*tovs_file,1),getHeader_TOVS(*tovs_file,2));
         }
 
 
