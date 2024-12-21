@@ -53,9 +53,9 @@ bool write_TOVS_block(const TOVS_file *file,const int block_number,const TOVS_bl
 
 void print_TOVS_header(const TOVS_file file);
 
-bool search_TOVS_record(TOVS_file file, const uint ID, uint *  block_number, uint * char_pos );
+bool search_TOVS_record(TOVS_file file, const uint ID, uint *  block_number, uint * char_pos, cost * cost);
 
-bool insert_TOVS_record(TOVS_file *file, const complete_student_record record);
+bool insert_TOVS_record(TOVS_file *file, const complete_student_record record, cost * cost);
 
 void print_TOVS_file(const TOVS_file tovs_file);
 

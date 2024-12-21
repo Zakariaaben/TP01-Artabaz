@@ -11,4 +11,5 @@ add_executable(TP_01_Artabaz main.c
         constants.h
         csv.c
         csv.h
-        split.c)
+        split.c
+)

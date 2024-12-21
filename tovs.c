@@ -5,6 +5,9 @@
 #include <stdbool.h>
 #include "TOF.h"
 #include "tovs.h"
+
+#include <math.h>
+
 #include "csv.h"
 // Function to initialize the file's header
 bool create_TOVS_file(const char *filename) {
@@ -205,7 +208,7 @@ bool parse_additional_info(const char *line, student_additional_info *record)  {
 
 
 
-bool search_TOVS_record(TOVS_file file, const uint ID, uint *block_number, uint *char_pos) {
+bool search_TOVS_record(TOVS_file file, const uint ID, uint *block_number, uint *char_pos, cost *cost) {
     bool is_divided = false;
     bool new_record = true;
 
@@ -231,6 +234,7 @@ bool search_TOVS_record(TOVS_file file, const uint ID, uint *block_number, uint 
 
         const int current_last_index = getHeader_TOVS(file, 1) == i ? getHeader_TOVS(file, 2) : MAX_CHAR_BLOCK_TOVS - 1;
         const TOVS_block block = read_TOVS_block(file, i);
+        cost->reads++;
 
         while (j <= current_last_index) {
             const int space_to_end = MAX_CHAR_BLOCK_TOVS - j;
@@ -364,10 +368,11 @@ bool search_TOVS_record(TOVS_file file, const uint ID, uint *block_number, uint 
 
 
 
-bool insert_TOVS_record(TOVS_file *file, const complete_student_record record) {
+bool insert_TOVS_record(TOVS_file *file, const complete_student_record record, cost * cost) {
     int block_pos, char_pos;
 
-    const bool found = search_TOVS_record(*file, record.ID, (uint *) &block_pos, (uint *) &char_pos);
+
+    const bool found = search_TOVS_record(*file, record.ID, (uint *) &block_pos, (uint *) &char_pos,cost);
 
     if (found) {
         return false;
@@ -388,6 +393,7 @@ bool insert_TOVS_record(TOVS_file *file, const complete_student_record record) {
     free(string_record);
     strcat(final_tovs_record,RECORD_SEPARATOR_TOVS);
     length = strlen(final_tovs_record);
+    file->header.number_of_inserted_characters+= (int) length;
 
 
     int j = char_pos;
@@ -395,6 +401,7 @@ bool insert_TOVS_record(TOVS_file *file, const complete_student_record record) {
 
     for (int i = block_pos; i <= getHeader_TOVS(*file, 1); i++) {
         TOVS_block block = read_TOVS_block(*file, i);
+        cost->reads++;
         const int current_last_index = getHeader_TOVS(*file, 1) == i
                                            ? getHeader_TOVS(*file, 2)
                                            : MAX_CHAR_BLOCK_TOVS - 1;
@@ -408,6 +415,7 @@ bool insert_TOVS_record(TOVS_file *file, const complete_student_record record) {
         }
         j = 0;
         write_TOVS_block(file, i, &block);
+        cost->writes++;
     }
 
 
@@ -421,6 +429,7 @@ bool insert_TOVS_record(TOVS_file *file, const complete_student_record record) {
     if (nblk != 0 && ((j + 1) != MAX_CHAR_BLOCK_TOVS)) {
         j++;
         block = read_TOVS_block(*file, nblk);
+        cost->reads++;
     }else { // jf block is full or it is the first block
         nblk ++;
         j = 0;
@@ -436,6 +445,7 @@ bool insert_TOVS_record(TOVS_file *file, const complete_student_record record) {
         if (j == MAX_CHAR_BLOCK_TOVS) {
             write_TOVS_block(file, nblk, &block);
             setHeader_TOVS(file, 1, nblk);
+            cost->writes++;
             nblk++;
             j = 0;
         }
@@ -443,6 +453,7 @@ bool insert_TOVS_record(TOVS_file *file, const complete_student_record record) {
 
     if (j != 0) {
         write_TOVS_block(file, nblk, &block);
+        cost -> writes++;
         setHeader_TOVS(file, 1, nblk);
         setHeader_TOVS(file,2,j - 1);
     }else {
@@ -463,9 +474,10 @@ void expand_TOF_to_TOVS(const char *csv_filename, TOF_file tof_file,TOVS_file *t
     }
 
     // Create a file to store the cost of insertion at each iteration
-    // const char * source = "tof_insertion_cost.csv";
-    // FILE *tof_insertion_cost_file = fopen(source, "w");
-    // fprintf(tof_insertion_cost_file, "ID,Reads,Writes\n");
+    const char * source = "tovs_expansion_cost.csv";
+    FILE *tovs_expansion_cost_file = fopen(source, "w");
+    fprintf(tovs_expansion_cost_file, "ID,Reads,Writes\n");
+
 
     char line[1024];
     //jump the first line
@@ -479,11 +491,12 @@ void expand_TOF_to_TOVS(const char *csv_filename, TOF_file tof_file,TOVS_file *t
         parse_additional_info(line, &additional_info);
 
 
-        cost cost  ;
+        cost cost_tof  ;
         int block_pos, record_pos;
-        int found = search_TOF_record(tof_file, additional_info.ID, &block_pos,&record_pos ,&cost);
+        const int found = search_TOF_record(tof_file, additional_info.ID, &block_pos,&record_pos ,&cost_tof);
 
         if (found) {
+            cost cost_tovs= {0,0};
 
             const TOF_block block = read_TOF_block(tof_file, block_pos);
             const student_record record = block.records[record_pos];
@@ -506,12 +519,12 @@ void expand_TOF_to_TOVS(const char *csv_filename, TOF_file tof_file,TOVS_file *t
             strcpy(complete_record.acquired_skills, additional_info.acquired_skills );
             // printf("header before insertion : %d %d\n",getHeader_TOVS(*tovs_file,1),getHeader_TOVS(*tovs_file,2));
 
-            insert_TOVS_record(tovs_file, complete_record);
+            insert_TOVS_record(tovs_file, complete_record, &cost_tovs);
+            fprintf(tovs_expansion_cost_file, "%d,%d,%d\n", record.ID, cost_tovs.reads, cost_tovs.writes);
             if(i % 1000 ==0) {
                 printf("Inserted %d records\n",i);
                 printf("header after insertion : %d %d\n\n",getHeader_TOVS(*tovs_file,1),getHeader_TOVS(*tovs_file,2));
             }
-            // printf("header after insertion : %d %d\n\n",getHeader_TOVS(*tovs_file,1),getHeader_TOVS(*tovs_file,2));
         }
 
 
@@ -519,6 +532,7 @@ void expand_TOF_to_TOVS(const char *csv_filename, TOF_file tof_file,TOVS_file *t
 
     }
     // fclose(tof_insertion_cost_file);
+    fclose(tovs_expansion_cost_file);
     fclose(file);
 }
 
@@ -531,6 +545,17 @@ void print_TOVS_file(const TOVS_file tovs_file) {
         printf("Block %d : %.*s\n",i, i==getHeader_TOVS(tovs_file,1)? getHeader_TOVS(tovs_file,2)+1:MAX_CHAR_BLOCK_TOVS,block.data);
     }
     printf("********************* PRINT TOVS FILE *********************\n");
+}
+
+void print_TOVS_header(const TOVS_file file) {
+    if (file.file == NULL) {
+        printf("Error while printing file header: File is NULL\n");
+        return;
+    }
+    printf("File Header:\n");
+    printf("\tNumber of blocks: %d\n", file.header.number_of_blocks);
+    printf("\tLast character position: %d\n", file.header.last_character_position);
+    printf("\tNumber of inserted characters: %d\n", file.header.number_of_inserted_characters);
 }
 
 

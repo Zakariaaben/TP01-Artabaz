@@ -21,6 +21,7 @@ bool create_TOF_file(const char *file_name) {
     TOF_header header;
     header.number_of_blocks = 0;
     header.number_of_records = 0;
+    header.number_of_deletions = 0 ;
     fseek(file, 0, SEEK_SET);
     fwrite(&header, sizeof(header), 1, file);
     fclose(file);
@@ -69,9 +70,10 @@ int getHeader(const TOF_file file, const int property) {
             return file.header.number_of_blocks;
         case 2:
             return file.header.number_of_records;
-
+        case 3 :
+            return  file.header.number_of_deletions;
         default:
-            printf("Error getting header, please Enter 1 for NBlk and 2 for NBrec \n");
+            printf("Error getting header, please Enter 1 for NBlk and 2 for NBrec and 3 for number of deleted records \n");
             return -1;
     }
 }
@@ -89,7 +91,9 @@ void setHeader(TOF_file *file, const int property, const int value) {
         case 2:
             file->header.number_of_records = value;
             break;
-
+        case 3:
+            file->header.number_of_deletions = value;
+            break;
         default:
             printf("Error setting header, please Enter 1 for NBlk and 2 for NBrec \n");
             break;
@@ -159,6 +163,7 @@ void print_TOF_header(const TOF_file file) {
     printf("File Header:\n");
     printf("\tNumber of blocks: %d\n", file.header.number_of_blocks);
     printf("\tNumber of records: %d\n", file.header.number_of_records);
+    printf("\tNumber of deleted records: %d\n",file.header.number_of_deletions);
 }
 
 void print_TOF_block(const TOF_block block) {
@@ -380,7 +385,7 @@ int *load_TOF_file_from_csv(const char *csv_filename, TOF_file *tof_file) {
             fprintf(tof_insertion_cost_file, "%d,%d,%d\n", record.ID, cost.reads, cost.writes);
             //print record each 1000 records
             if (VERBOSE && i%1000==0) {
-                printf("Record with ID %d has been inserted with %d reads and %d writes\n", record.ID, cost.reads,
+                printf("Record %d with ID %d has been inserted with %d reads and %d writes\n",i, record.ID, cost.reads,
                        cost.writes);
             }
         } else {
@@ -423,7 +428,7 @@ bool delete_TOF_record(TOF_file *file, const uint ID, cost *cost) {
     write_TOF_block(file, block, block_pos);
     cost->writes++;
 
-    setHeader(file, 2, getHeader(*file, 2) - 1);
+    setHeader(file, 3, getHeader(*file, 3) + 1);
 
     return true;
 }

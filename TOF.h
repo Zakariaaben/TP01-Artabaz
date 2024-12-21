@@ -17,6 +17,8 @@ typedef struct TOF_header {
     number_of_blocks;
     int
     number_of_records;
+    int
+    number_of_deletions;
 } TOF_header;
 
 typedef struct TOF_block {

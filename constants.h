@@ -6,6 +6,7 @@
 #define MAX_CITY_NAME_LENGTH 25
 #define MAX_ACQUIRED_SKILLS_LENGTH 255
 #define VERBOSE true
+#include <stdbool.h>
 
 typedef unsigned int uint;
 
